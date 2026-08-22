@@ -1,4 +1,1 @@
-window.SCATOLA_CONFIG = {
-  googleClientId: "INCOLLA_QUI_IL_CLIENT_ID.apps.googleusercontent.com",
-  driveRootName: "ScatolaDashboard"
-};
+window.SCATOLA_CONFIG = { googleClientId: "929881622068-emgs7tn5hsde8ejk44gi7jk79taea4jg.apps.googleusercontent.com", driverRootName: "ScatolaDashboard"};
