@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scatola Dashboard</title>
+<link rel="stylesheet" href="styles.css">
+<script src="config.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+<header>
+  <div class="brand"><div class="logo">S</div><div><h1>Scatola Dashboard</h1><p>I documenti restano su Google Drive.</p></div></div>
+  <div class="actions"><button id="refresh" class="green" disabled>↻ Aggiorna</button><button id="login" class="blue">G Accedi con Google</button></div>
+</header>
+<section class="hero"><small>ARCHIVIO PERSONALE</small><h2>Un solo link. Le tue caselle da qualsiasi PC.</h2><p>GitHub Pages ospita solo la Dashboard. I documenti vengono caricati direttamente sul tuo Google Drive.</p></section>
+<main>
+  <section id="locked" class="panel center"><div class="cloud">☁</div><h3>Collega Google Drive</h3><p>Verrà usata soltanto la cartella <b>ScatolaDashboard</b> sul tuo Drive.</p><button id="login2" class="blue big">G Accedi con Google</button></section>
+  <section id="dash" class="hidden"><div class="toolbar"><div><h3>Le mie caselle</h3><p id="summary">0 caselle</p></div><button id="add" class="violet">＋ Nuova casella</button></div><div id="grid" class="grid"></div></section>
+</main>
+<div id="setup" class="overlay hidden"><div class="modal setup"><h2>Configurazione iniziale</h2><p>Per collegare Google Drive senza installare nulla serve un <b>Client ID OAuth Web</b>.</p><ol><li>Pubblica questi file su GitHub Pages.</li><li>In Google Cloud abilita <b>Google Drive API</b>.</li><li>Crea un client OAuth di tipo <b>Web application</b>.</li><li>In <b>Authorized JavaScript origins</b> inserisci: <code id="origin"></code></li><li>Incolla qui il Client ID.</li></ol><input id="clientId" placeholder="...apps.googleusercontent.com"><div class="row"><button id="googleCloud" class="gray">Apri Google Cloud</button><button id="saveClient" class="blue">Salva e continua</button></div><p class="note">Per usarla da qualunque PC senza reinserire il Client ID, inseriscilo anche in <b>config.js</b> nel repository GitHub.</p></div></div>
+<div id="filesModal" class="overlay hidden"><div class="modal"><div class="modalHead"><h2 id="catTitle"></h2><button id="close">×</button></div><div id="drop" class="drop"><b>Trascina qui i file</b><span>oppure</span><button id="pick" class="blue">Scegli file</button><small>Upload diretto su Google Drive</small></div><input id="fileInput" type="file" multiple hidden><div id="fileList"></div></div></div>
+<div id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
