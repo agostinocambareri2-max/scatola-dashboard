@@ -29,9 +29,13 @@ for(const f of a){if(f.mimeType==="application/vnd.google-apps.folder"){const d=
 async function toggleFavorite(f){
  const props={...(f.appProperties||{})};
  const willAdd=props.scatolaFavorite!=="true";
+ // Drive richiede esplicitamente null per cancellare una appProperty:
+ // omettere la chiave lascia invariato il valore precedente sul server.
+ const updateProps={...props,scatolaFavorite:willAdd?"true":null};
+ await fetchApi(API+"/files/"+f.id+"?fields=id,name,appProperties",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({appProperties:updateProps})});
  if(willAdd)props.scatolaFavorite="true";else delete props.scatolaFavorite;
- await fetchApi(API+"/files/"+f.id+"?fields=id,name,appProperties",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({appProperties:props})});
  f.appProperties=props;
+ // Aggiorna subito sia il contrassegno sia l'elenco Preferiti.
  await refreshCurrent();
  toast(willAdd?"Aggiunto ai Preferiti":"Rimosso dai Preferiti","ok");
 }
