@@ -33,7 +33,57 @@ async function nextFolderNumber(parentId){const children=await list(`'${parentId
 async function addCat(){const n=prompt("Nome della nuova casella:");if(!n?.trim())return;const num=await nextFolderNumber(S.root.id);await createFolder(String(num).padStart(2,"0")+" - "+n.trim(),S.root.id);await loadCats()}
 async function addSubfolder(){const n=prompt("Nome della nuova sottocartella:");if(!n?.trim())return;const num=await nextFolderNumber(S.active.id);await createFolder(String(num).padStart(2,"0")+" - "+n.trim(),S.active.id);await loadFiles(S.active)}
 async function delFolder(f,inModal=false){if(!confirm(`Spostare "${f.name}" e tutto il suo contenuto nel Cestino di Google Drive?`))return;await patch(f.id,{trashed:true});if(inModal)await loadFiles(S.stack.at(-1));await loadCats();toast("Cartella spostata nel Cestino","ok")}
-async function moveFile(f){const folders=await collectFolders();const choices=folders.filter(x=>x.id!==S.active.id);if(!choices.length)return toast("Non ci sono altre cartelle disponibili");const menu=choices.map((x,i)=>`${i+1}. ${x.path}`).join("\n");const ans=prompt("Scegli la destinazione inserendo il numero:\n"+menu);const i=Number(ans)-1;if(!Number.isInteger(i)||i<0||i>=choices.length)return;await fetchApi(API+"/files/"+f.id+"?addParents="+choices[i].id+"&removeParents="+S.active.id,{method:"PATCH"});await loadFiles(S.active);toast("File spostato","ok")}
+let movePickerFile=null,movePickerStack=[];
+function ensureMovePicker(){
+ let host=$("folderPicker");
+ if(host)return host;
+ host=document.createElement("div");host.id="folderPicker";host.className="overlay hidden";
+ host.innerHTML=`<div class="modal movePickerModal"><div class="modalHead"><div><h2>Scegli la cartella di destinazione</h2><p class="pickerHelp">Apri le cartelle con il mouse e scegli dove spostare il documento.</p></div><button type="button" id="pickerClose">×</button></div><div id="pickerCrumbs" class="breadcrumbs pickerCrumbs"></div><div class="pickerCurrent"><div><b id="pickerCurrentName"></b><small>Cartella attualmente visualizzata</small></div><button type="button" class="green" id="pickerChooseCurrent">Sposta qui</button></div><div id="pickerList" class="pickerList"><p>Caricamento cartelle...</p></div><div class="pickerFooter"><button type="button" class="gray" id="pickerUp">↑ Cartella superiore</button><button type="button" class="gray" id="pickerCancel">Annulla</button></div></div>`;
+ document.body.appendChild(host);
+ $("pickerClose").onclick=$("pickerCancel").onclick=()=>host.classList.add("hidden");
+ $("pickerUp").onclick=()=>{if(movePickerStack.length>1){movePickerStack.pop();renderMovePicker().catch(e=>toast(e.message,"err"))}};
+ $("pickerChooseCurrent").onclick=()=>moveFileTo(movePickerStack.at(-1));
+ return host;
+}
+async function openMovePicker(f){
+ movePickerFile=f;ensureMovePicker();movePickerStack=[{...S.root}];
+ $("folderPicker").classList.remove("hidden");
+ await renderMovePicker();
+}
+async function renderMovePicker(){
+ const here=movePickerStack.at(-1);
+ $("pickerCurrentName").textContent=here.id===S.root.id?"ScatolaDashboard":here.name;
+ $("pickerUp").disabled=movePickerStack.length<=1;
+ $("pickerCrumbs").innerHTML=movePickerStack.map((x,i)=>`<button type="button" data-crumb="${i}">${esc(x.id===S.root.id?"ScatolaDashboard":x.name)}</button>`).join(" / ");
+ $("pickerCrumbs").querySelectorAll("button").forEach(b=>b.onclick=()=>{movePickerStack=movePickerStack.slice(0,Number(b.dataset.crumb)+1);renderMovePicker().catch(e=>toast(e.message,"err"))});
+ $("pickerList").innerHTML="<p class='pickerLoading'>Caricamento cartelle...</p>";
+ const folders=await list(`'${here.id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,"id,name,mimeType,folderColorRgb");
+ folders.sort((a,b)=>a.name.localeCompare(b.name,"it",{numeric:true}));
+ $("pickerList").innerHTML=folders.length?"":"<p class='pickerEmpty'>Non ci sono sottocartelle in questa posizione.</p>";
+ for(const folder of folders){
+  const row=document.createElement("div");row.className="pickerFolder";
+  row.innerHTML=`<div class="pickerFolderInfo"><span class="pickerFolderIcon" style="color:${esc(folder.folderColorRgb||"#e5a000")}">📁</span><div><b>${esc(folder.name)}</b><small>Cartella</small></div></div><div class="pickerFolderActions"><button type="button" class="gray pickerOpen">Apri</button><button type="button" class="green pickerChoose">Scegli</button></div>`;
+  row.querySelector(".pickerOpen").onclick=()=>{movePickerStack.push(folder);renderMovePicker().catch(e=>toast(e.message,"err"))};
+  row.querySelector(".pickerChoose").onclick=()=>moveFileTo(folder);
+  $("pickerList").appendChild(row);
+ }
+}
+async function moveFileTo(destination){
+ if(!movePickerFile)return;
+ if(destination.id===S.active.id){toast("Il documento si trova già in questa cartella.");return}
+ const f=movePickerFile;
+ try{
+  $("pickerChooseCurrent").disabled=true;
+  await fetchApi(API+"/files/"+f.id+"?addParents="+encodeURIComponent(destination.id)+"&removeParents="+encodeURIComponent(S.active.id),{method:"PATCH"});
+  $("folderPicker").classList.add("hidden");
+  movePickerFile=null;
+  await loadFiles(S.active);
+  await loadCats();
+  toast("Documento spostato in: "+destination.name,"ok");
+ }catch(e){toast("Spostamento non riuscito: "+e.message,"err")}
+ finally{$("pickerChooseCurrent").disabled=false}
+}
+async function moveFile(f){await openMovePicker(f)}
 async function collectFolders(){let out=[];async function walk(id,path){const fs=await list(`'${id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,"id,name,mimeType");for(const f of fs){const p=path+"/"+f.name;out.push({...f,path:p});await walk(f.id,p)}}await walk(S.root.id,"");return out}
 async function refreshCurrent(){await loadCats();if(!E.filesModal.classList.contains("hidden")&&S.active)await loadFiles(S.active)}
 function openSetup(){E.origin.textContent=location.origin;E.clientId.value=clientId();E.setup.classList.remove("hidden")}

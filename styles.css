@@ -10,3 +10,18 @@ main{max-width:1180px;margin:24px auto 50px;padding:0 14px}.panel{background:#ff
 progress{width:100%;height:18px}.progressModal{width:min(500px,100%)}#toast{position:fixed;right:20px;bottom:20px;z-index:99}.toast{margin-top:8px;padding:12px 15px;border-radius:11px;color:#fff;background:#136fd2;box-shadow:0 10px 24px #0002;max-width:360px}.toast.ok{background:#07895d}.toast.err{background:#cf294a}
 @media(max-width:950px){.grid{grid-template-columns:repeat(2,1fr)}header{align-items:flex-start}.hero h2{font-size:34px}}@media(max-width:650px){header{flex-direction:column}.actions{width:100%}.actions button{flex:1}.grid{grid-template-columns:1fr}.hero{margin:14px;border-radius:18px;padding:25px}.hero h2{font-size:29px}.toolbar{align-items:stretch;flex-direction:column}.toolbarActions{width:100%}.toolbarActions input{flex:1;min-width:0}.file,.folderRow{grid-template-columns:1fr}.fileActions{justify-content:flex-start}}
 
+
+/* Selettore visuale della cartella di destinazione */
+.movePickerModal{width:min(620px,100%);max-height:85vh;display:flex;flex-direction:column;gap:12px}
+.pickerHelp{margin:5px 0 0;color:var(--muted);font-size:12px;font-weight:400}
+.pickerCrumbs{padding:8px 0;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.pickerCurrent{display:flex;justify-content:space-between;align-items:center;gap:12px;background:#f1f7ff;border:1px solid #d6e7fa;border-radius:12px;padding:12px}
+.pickerCurrent b,.pickerCurrent small{display:block}.pickerCurrent small{font-size:11px;color:var(--muted);margin-top:3px}
+.pickerList{overflow:auto;min-height:110px;max-height:42vh;border:1px solid #e3ebf4;border-radius:12px;padding:4px 12px}
+.pickerFolder{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px solid #edf1f6}
+.pickerFolder:last-child{border-bottom:0}
+.pickerFolderInfo{display:flex;align-items:center;gap:10px;min-width:0}.pickerFolderInfo b,.pickerFolderInfo small{display:block;overflow-wrap:anywhere}.pickerFolderInfo small{font-size:11px;color:var(--muted);margin-top:2px}
+.pickerFolderIcon{font-size:23px;flex-shrink:0}.pickerFolderActions{display:flex;gap:7px;flex-shrink:0}.pickerFolderActions button{padding:8px 10px}
+.pickerEmpty,.pickerLoading{padding:18px 6px;color:var(--muted);font-size:13px;text-align:center}
+.pickerFooter{display:flex;justify-content:space-between;gap:10px}
+@media(max-width:560px){.pickerFolder{align-items:flex-start;flex-direction:column}.pickerFolderActions{width:100%}.pickerFolderActions button{flex:1}.pickerCurrent{align-items:flex-start;flex-direction:column}.pickerCurrent button{width:100%}}
