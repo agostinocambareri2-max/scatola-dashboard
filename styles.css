@@ -59,3 +59,21 @@ progress{width:100%;height:18px}.progressModal{width:min(500px,100%)}#toast{posi
 .colorPaletteNote{font-size:11px;color:var(--muted);margin:4px 0 14px}
 .colorPaletteFoot{display:flex;justify-content:flex-end}
 @media(max-width:420px){.colorPaletteGrid{gap:9px}.colorPaletteDialog{padding:15px}}
+
+
+/* Ordinamento e selezione multipla documenti */
+.sortPick{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);border:1px solid #dce7f3;padding:5px 9px;border-radius:9px}
+.sortPick select{font:inherit;color:#24364b;border:0;background:transparent;outline:none;cursor:pointer;max-width:155px}
+.selectionToolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0;padding:11px 13px;border:1px solid #d8e5f3;border-radius:12px;background:#f7faff}
+.selectAllLabel{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:#34465c;cursor:pointer}
+.selectAllLabel input,.selectFile input{width:17px;height:17px;accent-color:#0879ff;cursor:pointer}
+#selectedCount{font-size:12px;color:var(--muted);font-weight:700}
+.selectionActions{display:flex;gap:7px;flex-wrap:wrap;margin-left:auto}
+.selectionActions button{padding:8px 11px}
+.selectionActions button:disabled{opacity:.4;cursor:not-allowed}
+.fileInfo{display:flex;align-items:center;gap:10px;min-width:0}
+.selectFile{display:flex;align-items:center;justify-content:center;flex:0 0 25px;cursor:pointer}
+.fileText{min-width:0}
+.previewBtn{background:#6041c8;border:1px solid #5132b5;box-shadow:0 3px 0 rgba(60,37,135,.22);font-weight:900}
+.previewBtn:hover{filter:brightness(1.07)}
+@media(max-width:700px){.selectionToolbar{align-items:flex-start;flex-direction:column}.selectionActions{margin-left:0;width:100%}.selectionActions button{flex:1}.sortPick{width:100%;justify-content:space-between}}

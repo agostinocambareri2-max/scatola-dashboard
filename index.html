@@ -24,8 +24,13 @@
 </main>
 <div id="setup" class="overlay hidden"><div class="modal setup"><h2>Configurazione iniziale</h2><p>Per collegare Google Drive senza installare nulla serve un <b>Client ID OAuth Web</b>.</p><ol><li>Pubblica questi file su GitHub Pages.</li><li>In Google Cloud abilita <b>Google Drive API</b>.</li><li>Crea un client OAuth di tipo <b>Web application</b>.</li><li>In <b>Authorized JavaScript origins</b> inserisci: <code id="origin"></code></li><li>Incolla qui il Client ID.</li></ol><input id="clientId" placeholder="...apps.googleusercontent.com"><div class="row"><button id="googleCloud" class="gray">Apri Google Cloud</button><button id="saveClient" class="blue">Salva e continua</button></div><p class="note">Per usare la Dashboard da qualunque PC, inserisci il Client ID anche in config.js.</p></div></div>
 <div id="filesModal" class="overlay hidden"><div class="modal"><div class="modalHead"><div><h2 id="catTitle"></h2><div id="breadcrumbs" class="breadcrumbs"></div></div><button id="close">×</button></div>
- <div class="modalTools"><button id="newFolder" class="violet">＋ Nuova sottocartella</button><button id="upLevel" class="gray">↑ Cartella superiore</button><button id="renameFolder" class="gray">Rinomina</button><label class="colorPick">Colore <input id="folderColor" type="color" value="#0879ff"></label></div>
+ <div class="modalTools"><button id="newFolder" class="violet">＋ Nuova sottocartella</button><button id="upLevel" class="gray">↑ Cartella superiore</button><button id="renameFolder" class="gray">Rinomina</button><label class="colorPick">Colore <input id="folderColor" type="color" value="#0879ff"></label><label class="sortPick">Ordina <select id="sortFiles"><option value="name">Nome A-Z</option><option value="newest">Più recenti</option><option value="oldest">Più vecchi</option><option value="largest">Dimensione</option></select></label></div>
  <div id="drop" class="drop"><b>Trascina qui i file</b><span>oppure</span><button id="pick" class="blue">Scegli file</button><small>Upload diretto su Google Drive</small></div>
+ <div id="selectionToolbar" class="selectionToolbar hidden">
+  <label class="selectAllLabel"><input id="selectAllFiles" type="checkbox"> Seleziona tutti i documenti</label>
+  <span id="selectedCount">0 selezionati</span>
+  <div class="selectionActions"><button id="bulkMove" class="blue" disabled>⇢ Sposta selezionati</button><button id="bulkDelete" class="red" disabled>Elimina selezionati</button></div>
+ </div>
  <input id="fileInput" type="file" multiple hidden><div id="fileList"></div>
 </div></div>
 <div id="progress" class="overlay hidden"><div class="modal progressModal"><h2 id="progressTitle">Operazione in corso</h2><p id="progressText">Preparazione...</p><progress id="progressBar" value="0" max="100"></progress></div></div>

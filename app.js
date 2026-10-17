@@ -1,7 +1,7 @@
 (()=>{"use strict";
 const API="https://www.googleapis.com/drive/v3",UPLOAD="https://www.googleapis.com/upload/drive/v3",SCOPE="https://www.googleapis.com/auth/drive.file";
-const C=window.SCATOLA_CONFIG||{},S={token:"",client:null,root:null,cats:[],active:null,stack:[],allFolders:[],previewUrl:null,searchRun:0};
-const $=x=>document.getElementById(x),E={login:$("login"),login2:$("login2"),refresh:$("refresh"),backup:$("backup"),restore:$("restore"),restoreInput:$("restoreInput"),locked:$("locked"),dash:$("dash"),grid:$("grid"),summary:$("summary"),add:$("add"),search:$("search"),searchBtn:$("searchBtn"),searchClear:$("searchClear"),searchResults:$("searchResults"),favoritesPanel:$("favoritesPanel"),favoritesList:$("favoritesList"),favoritesCount:$("favoritesCount"),pdfPreview:$("pdfPreview"),pdfTitle:$("pdfTitle"),pdfFrame:$("pdfFrame"),pdfClose:$("pdfClose"),setup:$("setup"),origin:$("origin"),clientId:$("clientId"),saveClient:$("saveClient"),googleCloud:$("googleCloud"),filesModal:$("filesModal"),catTitle:$("catTitle"),breadcrumbs:$("breadcrumbs"),close:$("close"),drop:$("drop"),pick:$("pick"),fileInput:$("fileInput"),fileList:$("fileList"),toast:$("toast"),newFolder:$("newFolder"),upLevel:$("upLevel"),renameFolder:$("renameFolder"),folderColor:$("folderColor"),progress:$("progress"),progressTitle:$("progressTitle"),progressText:$("progressText"),progressBar:$("progressBar")};
+const C=window.SCATOLA_CONFIG||{},S={token:"",client:null,root:null,cats:[],active:null,stack:[],allFolders:[],previewUrl:null,searchRun:0,selectedFiles:new Set(),currentFiles:[],sortMode:"name"};
+const $=x=>document.getElementById(x),E={login:$("login"),login2:$("login2"),refresh:$("refresh"),backup:$("backup"),restore:$("restore"),restoreInput:$("restoreInput"),locked:$("locked"),dash:$("dash"),grid:$("grid"),summary:$("summary"),add:$("add"),search:$("search"),searchBtn:$("searchBtn"),searchClear:$("searchClear"),searchResults:$("searchResults"),favoritesPanel:$("favoritesPanel"),favoritesList:$("favoritesList"),favoritesCount:$("favoritesCount"),pdfPreview:$("pdfPreview"),pdfTitle:$("pdfTitle"),pdfFrame:$("pdfFrame"),pdfClose:$("pdfClose"),setup:$("setup"),origin:$("origin"),clientId:$("clientId"),saveClient:$("saveClient"),googleCloud:$("googleCloud"),filesModal:$("filesModal"),catTitle:$("catTitle"),breadcrumbs:$("breadcrumbs"),close:$("close"),drop:$("drop"),pick:$("pick"),fileInput:$("fileInput"),fileList:$("fileList"),toast:$("toast"),newFolder:$("newFolder"),upLevel:$("upLevel"),renameFolder:$("renameFolder"),folderColor:$("folderColor"),progress:$("progress"),progressTitle:$("progressTitle"),progressText:$("progressText"),progressBar:$("progressBar"),sortFiles:$("sortFiles"),selectionToolbar:$("selectionToolbar"),selectAllFiles:$("selectAllFiles"),selectedCount:$("selectedCount"),bulkMove:$("bulkMove"),bulkDelete:$("bulkDelete")};
 const DRIVE_COLORS=["#ac725e","#d06b64","#f83a22","#fa573c","#ff7537","#ffad46","#42d692","#16a765","#7bd148","#b3dc6c","#fbe983","#fad165","#92e1c0","#9fc6e7","#4986e7","#9a9cff","#b99aff","#cd74e6","#e1e1e1","#cabdbf","#cca6ac","#f691b2","#ffb878","#e7e6e6"];
 function driveColor(hex){const n=parseInt(hex.slice(1),16),r=n>>16,g=(n>>8)&255,b=n&255;let best=DRIVE_COLORS[0],dist=Infinity;for(const c of DRIVE_COLORS){const v=parseInt(c.slice(1),16),dr=r-(v>>16),dg=g-((v>>8)&255),db=b-(v&255),d=dr*dr+dg*dg+db*db;if(d<dist){dist=d;best=c}}return best}
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -21,10 +21,69 @@ function render(){E.summary.textContent=S.cats.length+" caselle";E.grid.innerHTM
 function pick(c){S.active=c;E.fileInput.value="";E.fileInput.click()}
 async function upload(c,fs){if(!fs.length)return;for(const f of fs){const init=await fetch(UPLOAD+"/files?uploadType=resumable&fields=id,name",{method:"POST",headers:{Authorization:"Bearer "+S.token,"Content-Type":"application/json","X-Upload-Content-Type":f.type||"application/octet-stream","X-Upload-Content-Length":String(f.size)},body:JSON.stringify({name:f.name,parents:[c.id]})});if(!init.ok)throw Error("Errore upload: "+f.name);const u=init.headers.get("Location"),r=await fetch(u,{method:"PUT",headers:{"Content-Type":f.type||"application/octet-stream"},body:f});if(!r.ok)throw Error("Errore upload "+f.name)}await refreshCurrent();toast(fs.length+" file caricati","ok")}
 async function openCat(c){S.active=c;S.stack=[c];E.filesModal.classList.remove("hidden");await loadFiles(c)}
-async function loadFiles(c){S.active=c;E.catTitle.textContent=c.name;E.folderColor.value=c.folderColorRgb||"#0879ff";E.breadcrumbs.innerHTML=S.stack.map((x,i)=>`<button data-i="${i}">${esc(x.name)}</button>`).join(" / ");E.breadcrumbs.querySelectorAll("button").forEach(b=>b.onclick=()=>{S.stack=S.stack.slice(0,Number(b.dataset.i)+1);loadFiles(S.stack.at(-1))});E.upLevel.disabled=S.stack.length<=1;
-const a=await list(`'${c.id}' in parents and trashed=false`);a.sort((x,y)=>{const xf=x.mimeType==="application/vnd.google-apps.folder",yf=y.mimeType==="application/vnd.google-apps.folder";return xf===yf?x.name.localeCompare(y.name,"it",{numeric:true}):xf?-1:1});E.fileList.innerHTML="";
-if(!a.length)E.fileList.innerHTML="<p>Nessun file o sottocartella.</p>";
-for(const f of a){if(f.mimeType==="application/vnd.google-apps.folder"){const d=document.createElement("div");d.className="folderRow";d.innerHTML=`<div class="folderName"><span class="folderIcon" aria-hidden="true" style="--folder-color:${safeColor(f.folderColorRgb,"#f2b33d")}"></span><div><b>${esc(f.name)}</b><span>Sottocartella</span></div></div><div class="row"><button class="green enter">Apri</button><button class="gray ren">Rinomina</button><button class="gray color" title="Cambia il colore della cartella">Colore</button><button class="starBtn fav" type="button" title="Aggiungi ai Preferiti" aria-label="Aggiungi ai Preferiti">☆</button><button class="red del">Elimina</button></div>`;if(f.appProperties?.scatolaFavorite==="true"){d.querySelector(".fav").textContent="★";d.querySelector(".fav").classList.add("isFavorite")}d.querySelector(".fav").onclick=()=>toggleFavorite(f).catch(e=>toast(e.message,"err"));d.querySelector(".enter").onclick=()=>{S.stack.push(f);loadFiles(f)};d.querySelector(".ren").onclick=()=>rename(f,true);d.querySelector(".color").onclick=()=>chooseColor(f);d.querySelector(".del").onclick=()=>delFolder(f,true);E.fileList.appendChild(d)}else{const d=document.createElement("div");d.className="file";d.innerHTML=`<div class="fileInfo"><b>${esc(f.name)}</b><span>${f.size?formatSize(Number(f.size)):f.mimeType}</span></div><div class="fileActions">${f.webViewLink?'<button class="green o">Apri</button>':""}${f.mimeType==="application/pdf"?'<button class="blue preview">Anteprima</button>':""}<button class="gray ren">Rinomina</button><button class="gray move">Sposta</button><button class="starBtn fav" type="button" title="Aggiungi ai Preferiti" aria-label="Aggiungi ai Preferiti">☆</button><button class="red x">Elimina</button></div>`;if(f.appProperties?.scatolaFavorite==="true"){d.querySelector(".fav").textContent="★";d.querySelector(".fav").classList.add("isFavorite")}d.querySelector(".fav").onclick=()=>toggleFavorite(f).catch(e=>toast(e.message,"err"));d.querySelector(".preview")?.addEventListener("click",()=>previewPdf(f).catch(e=>toast(e.message,"err")));d.querySelector(".o")?.addEventListener("click",()=>window.open(f.webViewLink,"_blank"));d.querySelector(".ren").onclick=()=>rename(f,true);d.querySelector(".move").onclick=()=>moveFile(f);d.querySelector(".x").onclick=async()=>{if(!confirm(`Spostare "${f.name}" nel Cestino di Google Drive?`))return;await patch(f.id,{trashed:true});await loadFiles(S.active);await loadCats()};E.fileList.appendChild(d)}}
+async function loadFiles(c){
+ S.active=c;
+ S.selectedFiles.clear();
+ E.catTitle.textContent=c.name;
+ E.folderColor.value=c.folderColorRgb||"#0879ff";
+ E.breadcrumbs.innerHTML=S.stack.map((x,i)=>`<button data-i="${i}">${esc(x.name)}</button>`).join(" / ");
+ E.breadcrumbs.querySelectorAll("button").forEach(b=>b.onclick=()=>{S.stack=S.stack.slice(0,Number(b.dataset.i)+1);loadFiles(S.stack.at(-1))});
+ E.upLevel.disabled=S.stack.length<=1;
+ const items=await list(`'${c.id}' in parents and trashed=false`);
+ const folders=items.filter(x=>x.mimeType==="application/vnd.google-apps.folder");
+ const files=items.filter(x=>x.mimeType!=="application/vnd.google-apps.folder");
+ folders.sort((a,b)=>a.name.localeCompare(b.name,"it",{numeric:true}));
+ const mode=E.sortFiles?.value||S.sortMode||"name";
+ files.sort((a,b)=>{
+  if(mode==="newest")return new Date(b.modifiedTime||0)-new Date(a.modifiedTime||0);
+  if(mode==="oldest")return new Date(a.modifiedTime||0)-new Date(b.modifiedTime||0);
+  if(mode==="largest")return Number(b.size||0)-Number(a.size||0)||a.name.localeCompare(b.name,"it",{numeric:true});
+  return a.name.localeCompare(b.name,"it",{numeric:true});
+ });
+ S.currentFiles=files;
+ E.fileList.innerHTML="";
+ if(!items.length)E.fileList.innerHTML="<p>Nessun file o sottocartella.</p>";
+ for(const f of folders){
+  const d=document.createElement("div");d.className="folderRow";
+  d.innerHTML=`<div class="folderName"><span class="folderIcon" aria-hidden="true" style="--folder-color:${safeColor(f.folderColorRgb,"#f2b33d")}"></span><div><b>${esc(f.name)}</b><span>Sottocartella</span></div></div><div class="row"><button class="green enter">Apri</button><button class="gray ren">Rinomina</button><button class="gray color" title="Cambia il colore della cartella">Colore</button><button class="starBtn fav" type="button" title="Aggiungi ai Preferiti" aria-label="Aggiungi ai Preferiti">☆</button><button class="red del">Elimina</button></div>`;
+  if(f.appProperties?.scatolaFavorite==="true"){d.querySelector(".fav").textContent="★";d.querySelector(".fav").classList.add("isFavorite")}
+  d.querySelector(".fav").onclick=()=>toggleFavorite(f).catch(e=>toast(e.message,"err"));
+  d.querySelector(".enter").onclick=()=>{S.stack.push(f);loadFiles(f)};
+  d.querySelector(".ren").onclick=()=>rename(f,true);
+  d.querySelector(".color").onclick=()=>chooseColor(f);
+  d.querySelector(".del").onclick=()=>delFolder(f,true);
+  E.fileList.appendChild(d);
+ }
+ for(const f of files){
+  const d=document.createElement("div");d.className="file";
+  d.innerHTML=`<div class="fileInfo"><label class="selectFile"><input type="checkbox" class="fileSelect" aria-label="Seleziona ${esc(f.name)}"><span></span></label><div class="fileText"><b>${esc(f.name)}</b><span>${f.size?formatSize(Number(f.size)):f.mimeType}</span></div></div><div class="fileActions">${f.mimeType==="application/pdf"?'<button class="blue preview previewBtn">👁 Anteprima PDF</button>':""}${f.webViewLink?'<button class="green o">Apri</button>':""}<button class="gray ren">Rinomina</button><button class="gray move">Sposta</button><button class="starBtn fav" type="button" title="Aggiungi ai Preferiti" aria-label="Aggiungi ai Preferiti">☆</button><button class="red x">Elimina</button></div>`;
+  if(f.appProperties?.scatolaFavorite==="true"){d.querySelector(".fav").textContent="★";d.querySelector(".fav").classList.add("isFavorite")}
+  d.querySelector(".fileSelect").onchange=e=>{
+   if(e.target.checked)S.selectedFiles.add(f.id);else S.selectedFiles.delete(f.id);
+   renderSelectionToolbar();
+  };
+  d.querySelector(".fav").onclick=()=>toggleFavorite(f).catch(e=>toast(e.message,"err"));
+  d.querySelector(".preview")?.addEventListener("click",()=>previewPdf(f).catch(e=>toast(e.message,"err")));
+  d.querySelector(".o")?.addEventListener("click",()=>window.open(f.webViewLink,"_blank"));
+  d.querySelector(".ren").onclick=()=>rename(f,true);
+  d.querySelector(".move").onclick=()=>moveFile(f);
+  d.querySelector(".x").onclick=async()=>{
+   if(!confirm(`Spostare "${f.name}" nel Cestino di Google Drive?`))return;
+   await patch(f.id,{trashed:true});await loadFiles(S.active);await loadCats();
+  };
+  E.fileList.appendChild(d);
+ }
+ renderSelectionToolbar();
+}
+function renderSelectionToolbar(){
+ if(!E.selectionToolbar)return;
+ const total=S.currentFiles.length,selected=S.selectedFiles.size;
+ E.selectionToolbar.classList.toggle("hidden",total===0);
+ E.selectedCount.textContent=selected+" selezionati";
+ E.bulkMove.disabled=selected===0;
+ E.bulkDelete.disabled=selected===0;
+ E.selectAllFiles.checked=total>0&&selected===total;
+ E.selectAllFiles.indeterminate=selected>0&&selected<total;
 }
 async function toggleFavorite(f){
  const props={...(f.appProperties||{})};
@@ -140,20 +199,27 @@ async function nextFolderNumber(parentId){const children=await list(`'${parentId
 async function addCat(){const n=prompt("Nome della nuova casella:");if(!n?.trim())return;const num=await nextFolderNumber(S.root.id);await createFolder(String(num).padStart(2,"0")+" - "+n.trim(),S.root.id);await loadCats()}
 async function addSubfolder(){const n=prompt("Nome della nuova sottocartella:");if(!n?.trim())return;const num=await nextFolderNumber(S.active.id);await createFolder(String(num).padStart(2,"0")+" - "+n.trim(),S.active.id);await loadFiles(S.active)}
 async function delFolder(f,inModal=false){if(!confirm(`Spostare "${f.name}" e tutto il suo contenuto nel Cestino di Google Drive?`))return;await patch(f.id,{trashed:true});if(inModal)await loadFiles(S.stack.at(-1));await loadCats();toast("Cartella spostata nel Cestino","ok")}
-let movePickerFile=null,movePickerStack=[];
+let movePickerFiles=[],movePickerSourceId=null,movePickerStack=[];
 function ensureMovePicker(){
  let host=$("folderPicker");
  if(host)return host;
  host=document.createElement("div");host.id="folderPicker";host.className="overlay hidden";
- host.innerHTML=`<div class="modal movePickerModal"><div class="modalHead"><div><h2>Scegli la cartella di destinazione</h2><p class="pickerHelp">Apri le cartelle con il mouse e scegli dove spostare il documento.</p></div><button type="button" id="pickerClose">×</button></div><div id="pickerCrumbs" class="breadcrumbs pickerCrumbs"></div><div class="pickerCurrent"><div><b id="pickerCurrentName"></b><small>Cartella attualmente visualizzata</small></div><button type="button" class="green" id="pickerChooseCurrent">Sposta qui</button></div><div id="pickerList" class="pickerList"><p>Caricamento cartelle...</p></div><div class="pickerFooter"><button type="button" class="gray" id="pickerUp">↑ Cartella superiore</button><button type="button" class="gray" id="pickerCancel">Annulla</button></div></div>`;
+ host.innerHTML=`<div class="modal movePickerModal"><div class="modalHead"><div><h2>Scegli la cartella di destinazione</h2><p class="pickerHelp" id="pickerHelp">Apri le cartelle con il mouse e scegli la destinazione.</p></div><button type="button" id="pickerClose">×</button></div><div id="pickerCrumbs" class="breadcrumbs pickerCrumbs"></div><div class="pickerCurrent"><div><b id="pickerCurrentName"></b><small>Cartella attualmente visualizzata</small></div><button type="button" class="green" id="pickerChooseCurrent">Sposta qui</button></div><div id="pickerList" class="pickerList"><p>Caricamento cartelle...</p></div><div class="pickerFooter"><button type="button" class="gray" id="pickerUp">↑ Cartella superiore</button><button type="button" class="gray" id="pickerCancel">Annulla</button></div></div>`;
  document.body.appendChild(host);
  $("pickerClose").onclick=$("pickerCancel").onclick=()=>host.classList.add("hidden");
  $("pickerUp").onclick=()=>{if(movePickerStack.length>1){movePickerStack.pop();renderMovePicker().catch(e=>toast(e.message,"err"))}};
  $("pickerChooseCurrent").onclick=()=>moveFileTo(movePickerStack.at(-1));
  return host;
 }
-async function openMovePicker(f){
- movePickerFile=f;ensureMovePicker();movePickerStack=[{...S.root}];
+async function openMovePicker(files){
+ movePickerFiles=Array.isArray(files)?files:[files];
+ movePickerSourceId=S.active.id;
+ ensureMovePicker();
+ $("pickerHelp").textContent=movePickerFiles.length===1
+  ?"Apri le cartelle con il mouse e scegli dove spostare il documento."
+  :`Scegli la destinazione per ${movePickerFiles.length} documenti selezionati.`;
+ $("pickerChooseCurrent").textContent=movePickerFiles.length===1?"Sposta qui":"Sposta qui ("+movePickerFiles.length+")";
+ movePickerStack=[{...S.root}];
  $("folderPicker").classList.remove("hidden");
  await renderMovePicker();
 }
@@ -176,21 +242,47 @@ async function renderMovePicker(){
  }
 }
 async function moveFileTo(destination){
- if(!movePickerFile)return;
- if(destination.id===S.active.id){toast("Il documento si trova già in questa cartella.");return}
- const f=movePickerFile;
+ if(!movePickerFiles.length)return;
+ if(destination.id===movePickerSourceId){toast("I documenti si trovano già in questa cartella.");return}
  try{
   $("pickerChooseCurrent").disabled=true;
-  await fetchApi(API+"/files/"+f.id+"?addParents="+encodeURIComponent(destination.id)+"&removeParents="+encodeURIComponent(S.active.id),{method:"PATCH"});
+  document.querySelectorAll(".pickerChoose").forEach(b=>b.disabled=true);
+  let moved=0,failed=[];
+  for(const f of movePickerFiles){
+   try{
+    await fetchApi(API+"/files/"+f.id+"?addParents="+encodeURIComponent(destination.id)+"&removeParents="+encodeURIComponent(movePickerSourceId),{method:"PATCH"});
+    moved++;
+   }catch(e){failed.push(f.name+": "+e.message)}
+  }
   $("folderPicker").classList.add("hidden");
-  movePickerFile=null;
-  await loadFiles(S.active);
-  await loadCats();
-  toast("Documento spostato in: "+destination.name,"ok");
+  movePickerFiles=[];S.selectedFiles.clear();
+  await loadFiles(S.active);await loadCats();
+  if(failed.length)toast(`Spostati ${moved} documenti. ${failed.length} non sono stati spostati: ${failed[0]}`,"err");
+  else toast(`${moved} documenti spostati in: ${destination.name||"ScatolaDashboard"}`,"ok");
  }catch(e){toast("Spostamento non riuscito: "+e.message,"err")}
- finally{$("pickerChooseCurrent").disabled=false}
+ finally{$("pickerChooseCurrent").disabled=false;document.querySelectorAll(".pickerChoose").forEach(b=>b.disabled=false)}
 }
 async function moveFile(f){await openMovePicker(f)}
+async function moveSelectedFiles(){
+ const selected=S.currentFiles.filter(f=>S.selectedFiles.has(f.id));
+ if(!selected.length)return;
+ await openMovePicker(selected);
+}
+async function deleteSelectedFiles(){
+ const selected=S.currentFiles.filter(f=>S.selectedFiles.has(f.id));
+ if(!selected.length)return;
+ if(!confirm(`Spostare nel Cestino di Google Drive ${selected.length} documenti selezionati?`))return;
+ E.bulkDelete.disabled=true;E.bulkMove.disabled=true;
+ let deleted=0,failed=[];
+ for(const f of selected){
+  try{await patch(f.id,{trashed:true});deleted++}
+  catch(e){failed.push(f.name+": "+e.message)}
+ }
+ S.selectedFiles.clear();
+ await loadFiles(S.active);await loadCats();
+ if(failed.length)toast(`Eliminati ${deleted} documenti. ${failed.length} non eliminati: ${failed[0]}`,"err");
+ else toast(`${deleted} documenti spostati nel Cestino di Google Drive.`,"ok");
+}
 async function collectFolders(){let out=[];async function walk(id,path){const fs=await list(`'${id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,"id,name,mimeType");for(const f of fs){const p=path+"/"+f.name;out.push({...f,path:p});await walk(f.id,p)}}await walk(S.root.id,"");return out}
 async function refreshCurrent(){await loadCats();if(!E.filesModal.classList.contains("hidden")&&S.active)await loadFiles(S.active)}
 function openSetup(){E.origin.textContent=location.origin;E.clientId.value=clientId();E.setup.classList.remove("hidden")}
@@ -243,6 +335,10 @@ async function searchAll(q){
  }
 }
 E.saveClient.onclick=()=>{const v=E.clientId.value.trim();if(!v.includes(".apps.googleusercontent.com"))return alert("Client ID non valido");localStorage.setItem("scatola_client_id",v);E.setup.classList.add("hidden");toast("Client ID salvato. Ora premi Accedi con Google.","ok")};
-E.googleCloud.onclick=()=>window.open("https://console.cloud.google.com/apis/library/drive.googleapis.com","_blank");E.login.onclick=()=>auth().catch(e=>toast(e.message,"err"));E.login2.onclick=()=>auth().catch(e=>toast(e.message,"err"));E.refresh.onclick=()=>loadCats().then(()=>toast("Aggiornato","ok")).catch(e=>toast(e.message,"err"));E.add.onclick=()=>addCat().catch(e=>toast(e.message,"err"));E.close.onclick=()=>E.filesModal.classList.add("hidden");E.pick.onclick=()=>S.active&&pick(S.active);E.fileInput.onchange=()=>S.active&&upload(S.active,[...E.fileInput.files]).catch(e=>toast(e.message,"err"));E.backup.onclick=backup;E.restore.onclick=()=>E.restoreInput.click();E.restoreInput.onchange=()=>restoreZip(E.restoreInput.files[0]);E.newFolder.onclick=()=>addSubfolder().catch(e=>toast(e.message,"err"));E.upLevel.onclick=()=>{if(S.stack.length>1){S.stack.pop();loadFiles(S.stack.at(-1))}};E.renameFolder.onclick=()=>rename(S.active);E.folderColor.onchange=async()=>{await patch(S.active.id,{folderColorRgb:driveColor(E.folderColor.value)});await refreshCurrent()};const runSearch=()=>searchAll(E.search.value).catch(e=>toast(e.message,"err"));E.searchBtn.onclick=runSearch;E.search.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();runSearch()}});E.search.oninput=()=>{clearTimeout(E.searchTimer);E.searchTimer=setTimeout(runSearch,250)};E.searchClear.onclick=()=>{E.search.value="";S.searchRun++;E.searchResults.classList.add("hidden");E.searchResults.innerHTML="";E.search.focus()};E.pdfClose.onclick=closePdfPreview;E.pdfPreview.addEventListener("click",e=>{if(e.target===E.pdfPreview)closePdfPreview()});["dragenter","dragover"].forEach(x=>E.drop.addEventListener(x,e=>{e.preventDefault();E.drop.classList.add("on")}));["dragleave","drop"].forEach(x=>E.drop.addEventListener(x,e=>{e.preventDefault();E.drop.classList.remove("on")}));E.drop.addEventListener("drop",e=>S.active&&upload(S.active,[...e.dataTransfer.files]).catch(er=>toast(er.message,"err")));
+E.googleCloud.onclick=()=>window.open("https://console.cloud.google.com/apis/library/drive.googleapis.com","_blank");E.login.onclick=()=>auth().catch(e=>toast(e.message,"err"));E.login2.onclick=()=>auth().catch(e=>toast(e.message,"err"));E.refresh.onclick=()=>loadCats().then(()=>toast("Aggiornato","ok")).catch(e=>toast(e.message,"err"));E.add.onclick=()=>addCat().catch(e=>toast(e.message,"err"));E.close.onclick=()=>E.filesModal.classList.add("hidden");E.pick.onclick=()=>S.active&&pick(S.active);E.fileInput.onchange=()=>S.active&&upload(S.active,[...E.fileInput.files]).catch(e=>toast(e.message,"err"));E.backup.onclick=backup;E.restore.onclick=()=>E.restoreInput.click();E.restoreInput.onchange=()=>restoreZip(E.restoreInput.files[0]);E.newFolder.onclick=()=>addSubfolder().catch(e=>toast(e.message,"err"));E.upLevel.onclick=()=>{if(S.stack.length>1){S.stack.pop();loadFiles(S.stack.at(-1))}};E.renameFolder.onclick=()=>rename(S.active);E.folderColor.onchange=async()=>{await patch(S.active.id,{folderColorRgb:driveColor(E.folderColor.value)});await refreshCurrent()};const runSearch=()=>searchAll(E.search.value).catch(e=>toast(e.message,"err"));E.searchBtn.onclick=runSearch;E.search.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();runSearch()}});E.search.oninput=()=>{clearTimeout(E.searchTimer);E.searchTimer=setTimeout(runSearch,250)};E.searchClear.onclick=()=>{E.search.value="";S.searchRun++;E.searchResults.classList.add("hidden");E.searchResults.innerHTML="";E.search.focus()};E.sortFiles.onchange=()=>{S.sortMode=E.sortFiles.value;if(S.active)loadFiles(S.active).catch(e=>toast(e.message,"err"))};
+E.selectAllFiles.onchange=()=>{if(E.selectAllFiles.checked)S.currentFiles.forEach(f=>S.selectedFiles.add(f.id));else S.selectedFiles.clear();E.fileList.querySelectorAll(".fileSelect").forEach(cb=>{cb.checked=E.selectAllFiles.checked});renderSelectionToolbar()};
+E.bulkMove.onclick=()=>moveSelectedFiles().catch(e=>toast(e.message,"err"));
+E.bulkDelete.onclick=()=>deleteSelectedFiles().catch(e=>toast(e.message,"err"));
+E.pdfClose.onclick=closePdfPreview;E.pdfPreview.addEventListener("click",e=>{if(e.target===E.pdfPreview)closePdfPreview()});["dragenter","dragover"].forEach(x=>E.drop.addEventListener(x,e=>{e.preventDefault();E.drop.classList.add("on")}));["dragleave","drop"].forEach(x=>E.drop.addEventListener(x,e=>{e.preventDefault();E.drop.classList.remove("on")}));E.drop.addEventListener("drop",e=>S.active&&upload(S.active,[...e.dataTransfer.files]).catch(er=>toast(er.message,"err")));
 if(!clientId())setTimeout(openSetup,350);
 })();
