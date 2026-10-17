@@ -96,7 +96,46 @@ function closePdfPreview(){E.pdfPreview.classList.add("hidden");E.pdfFrame.src="
 function formatSize(n){if(!n)return "";const u=["B","KB","MB","GB"];let i=0;while(n>=1024&&i<u.length-1){n/=1024;i++}return n.toFixed(i?1:0)+" "+u[i]}
 async function patch(id,b){return fetchApi(API+"/files/"+id+"?fields=id,name,trashed,folderColorRgb,webViewLink,parents,appProperties",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)})}
 async function rename(f,inModal=false){const n=prompt("Nuovo nome:",f.name);if(!n?.trim()||n.trim()===f.name)return;await patch(f.id,{name:n.trim()});f.name=n.trim();S.stack=S.stack.map(x=>x.id===f.id?{...x,name:n.trim()}:x);if(S.active?.id===f.id)S.active.name=n.trim();await refreshCurrent();toast("Nome aggiornato","ok")}
-async function chooseColor(f){const inp=document.createElement("input");inp.type="color";inp.value=f.folderColorRgb||"#0879ff";inp.onchange=async()=>{await patch(f.id,{folderColorRgb:driveColor(inp.value)});await refreshCurrent();toast("Colore aggiornato","ok")};inp.click()}
+async function chooseColor(f){
+ const existing=document.querySelector(".colorPaletteOverlay");
+ if(existing)existing.remove();
+ const overlay=document.createElement("div");
+ overlay.className="colorPaletteOverlay";
+ overlay.setAttribute("role","presentation");
+ const selected=safeColor(f.folderColorRgb,"");
+ overlay.innerHTML=`<section class="colorPaletteDialog" role="dialog" aria-modal="true" aria-label="Scegli il colore della cartella">
+  <div class="colorPaletteHead"><div><h3>Scegli il colore</h3><p>${esc(f.name)}</p></div><button type="button" class="colorPaletteClose" aria-label="Chiudi">×</button></div>
+  <div class="colorPaletteGrid">${DRIVE_COLORS.map(c=>`<button type="button" class="colorSwatch ${c===selected?"isSelected":""}" data-color="${c}" style="--swatch:${c}" title="${c}" aria-label="Colore ${c}" ${c===selected?'aria-pressed="true"':'aria-pressed="false"'}></button>`).join("")}</div>
+  <p class="colorPaletteNote">Scegli un colore supportato da Google Drive.</p>
+  <div class="colorPaletteFoot"><button type="button" class="gray colorPaletteCancel">Annulla</button></div>
+ </section>`;
+ document.body.appendChild(overlay);
+ const close=()=>overlay.remove();
+ overlay.querySelector(".colorPaletteClose").onclick=close;
+ overlay.querySelector(".colorPaletteCancel").onclick=close;
+ overlay.addEventListener("click",e=>{if(e.target===overlay)close()});
+ overlay.querySelectorAll(".colorSwatch").forEach(btn=>btn.addEventListener("click",async()=>{
+  const color=btn.dataset.color;
+  overlay.querySelectorAll("button").forEach(b=>b.disabled=true);
+  try{
+   await patch(f.id,{folderColorRgb:color});
+   const saved=await fetchApi(API+"/files/"+f.id+"?fields=id,name,folderColorRgb");
+   if(!saved?.folderColorRgb)throw Error("Google Drive non ha confermato il colore. Riprova.");
+   f.folderColorRgb=saved.folderColorRgb;
+   const cat=S.cats.find(x=>x.id===f.id);if(cat)cat.folderColorRgb=saved.folderColorRgb;
+   S.stack=S.stack.map(x=>x.id===f.id?{...x,folderColorRgb:saved.folderColorRgb}:x);
+   if(S.active?.id===f.id)S.active.folderColorRgb=saved.folderColorRgb;
+   close();
+   await refreshCurrent();
+   toast("Colore della cartella aggiornato","ok");
+  }catch(e){
+   overlay.querySelectorAll("button").forEach(b=>b.disabled=false);
+   toast("Non sono riuscita a salvare il colore: "+e.message,"err");
+  }
+ }));
+ const first=overlay.querySelector(".colorSwatch");
+ first?.focus();
+}
 async function nextFolderNumber(parentId){const children=await list(`'${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,"id,name");let max=children.length;for(const f of children){const m=f.name.match(/^\s*(\d+)\s*[-.)_]/);if(m)max=Math.max(max,Number(m[1]))}return max+1}
 async function addCat(){const n=prompt("Nome della nuova casella:");if(!n?.trim())return;const num=await nextFolderNumber(S.root.id);await createFolder(String(num).padStart(2,"0")+" - "+n.trim(),S.root.id);await loadCats()}
 async function addSubfolder(){const n=prompt("Nome della nuova sottocartella:");if(!n?.trim())return;const num=await nextFolderNumber(S.active.id);await createFolder(String(num).padStart(2,"0")+" - "+n.trim(),S.active.id);await loadFiles(S.active)}
